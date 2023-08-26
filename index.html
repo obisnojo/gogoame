@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <meta name="author" content="sumbioun.com">
+    <meta name="description" content="Quanto pesa uma palavra?" />
+    <meta name="keywords" content="rain, texto, texto, chuva, arte gerativa, generative art, generativa, net art, web art, physics, física, arte, pedro veneroso, sumbioun" />
+    <link rel="icon" href="favicon.png" type="image/x-icon" />
+    <title>Gogoame | Chuva de texto</title>
+    <meta property='og:title' content='Gogoame | Chuva de texto' />
+    <meta property='og:locale' content="pt_BR"/>
+    <meta property='og:description' content='Quanto pesa uma palavra?' />
+    <meta property='og:url' content='http://gogoame.sumbioun.com/' />
+    <meta property="og:image" content="http://gogoame.sumbioun.com/public/media/chuva.jpg" />
+    <meta property='og:type' content='website' />
+    <meta property='og:site_name' content='Gogoame | Chuva de texto' />
+    <link rel="stylesheet" type="text/css" href="public/front/css/main.css?v=0.0.2">
+    <link href='http://fonts.googleapis.com/css?family=Source Sans Pro:200,300,400,500,600,700,800' rel='stylesheet' type='text/css'>
+    <!-- <link rel="stylesheet" href="public/front/css/font-awesome.min.css"> -->
+    <script src="https://kit.fontawesome.com/17f693c423.js" crossorigin="anonymous"></script>
+    <script type="text/javascript" src="public/front/js/jquery-1.9.1.min.js"></script>
+
+    <script src="public/front/js/Drops.js"></script>
+    <script src="public/front/js/Environment.js"></script>
+    <script src="public/front/js/RainText.js"></script>
+    <script src="public/front/js/DropWords.js"></script>
+    <script src="public/front/js/Gui.js"></script>
+    <script src="public/front/js/Text.js"></script>
+
+    <!--
+    _________Title | Gogoame – gogoame.sumbioun.com
+    ________Author | pedro veneroso – pedroveneroso.com
+    ________________ an experiment by Sumbioun Lab – sumbioun.com
+
+    _______Version | 0.2β
+    __Release date | Oct 24th 2016
+    ___Last update | Nov 5th 2016
+
+    _______License | GPLv3 2016 sumbioun.com
+    -->
+    <style type="text/css">
+        #buy{
+            position: absolute;
+            bottom: 0px;
+            left: 0px;
+            width: 128px;
+            font-size: 12px;
+            padding-left: 14px;
+            border: 1px solid black;
+            background-color: white;
+            padding-top: 4px;
+            padding-bottom: 4px;
+        }
+        #buy:hover{
+            border: 1px solid #7fa1d3;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+    var drop_words;
+    var master = this;
+
+    var get_url = window.location.href;
+    var item = get_url.split('?');
+
+    $.ajax({
+        url: "http://127.0.0.1:449/get_text",
+        type: "POST",
+        contentType: 'application/json; charset=utf-8',
+        success: function (resultData) {
+            var db_message = $.parseJSON(resultData);
+            drop_words = db_message;
+            console.log(drop_words)
+            if(item[1] != undefined){
+                var project = item[1].split('=');
+                project = project[1];
+                $.ajax({
+                    type: "POST",
+                    url: "http://gogoame.sumbioun.com/db/get_message.php",
+                    data: { ame: project },
+                    success: function (resultData) {
+                        var db_message = $.parseJSON(resultData);
+                        mainCode(drop_words,db_message[0]['mensagem']);
+                        // console.log(db_message[0]['mensagem']);
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                    },
+                    timeout: 120000,
+                });
+            }
+            else{
+                mainCode(drop_words,null);
+            }
+
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+        },
+        timeout: 120000,
+    });
+
+    function mainCode(data,message){
+
+        var gui = new Gui();
+        var environment = new Environment();
+        var rain_text = new Array();
+        var input_text = new Text();
+        var make_rain_text = false;
+        var rain_message;
+
+        if(message === null){
+            rain_message=false;
+        }
+        else{
+            rain_message=true;
+        }
+
+        environment.initializeCanvas();
+
+        var drops = new Array();
+        for(var i = 0; i < environment.getIntensity(); i++){
+            drops[i] = new Drops(i, environment.getChars(), environment.getGravity());
+            drops[i].initializeDrop();
+        }
+
+        // var drop_words = new Array();
+        // for(var h = 0; h < environment.getCurrentWordsIntensity(); h++){
+
+        //   // console.log('bla');
+        // }
+
+        var current_drop;
+        // console.log(data[current_drop]['palavra'] +  " drops");
+        var drop_word = new Array(10);
+        for(var i = 0; i < drop_word.length; i++){
+            drop_word[i] = new Array(4);
+            drop_word[i][0] = new DropWords();
+            current_drop = Math.floor(Math.random() * (data.length - 1 + 1)) + 1;
+            drop_word[i][0].initializeText(data[current_drop]['palavra'],environment.getGravity(),environment.getWind());
+            drop_word[i][1] = Math.floor(Math.random() * (800 - 60 + 1)) + 60; // max_counter
+            drop_word[i][2] = 0; // counter
+            drop_word[i][3] = false;
+            // console.log(data[current_drop]['palavra'] + " | " + drop_word[i][1]);
+        }
+
+
+
+        /* ANIMAÇÃO */
+
+        // Vento com base no mouse
+
+        document.addEventListener("mousemove", function(e){
+            environment.updateCurrentWind(e.clientX);
+        });
+
+        // Iteração
+
+        var the_rain = setInterval(rainTimer, 16.6);
+
+        var rain_canvas = document.getElementById('rain_processing');
+        var rain_context = rain_canvas.getContext("2d");
+
+        var text = new Array();
+        var timing = new Array();
+        var current_text = 0;
+        var total_texts = 0;
+
+        function rainTimer() {
+            // Checar input
+            if(gui.checkInput()){
+                gui.confirmReceive();
+                var analyze_text = gui.getText();
+                text = input_text.processText(analyze_text);
+                for(var a = 0; a < text.length; a++){
+                    if(text[a].length > 0){
+                        total_texts++;
+                        rain_text[total_texts-1] = new RainText();
+                        rain_text[total_texts-1].initializeText(text[a], environment.getGravity(), environment.getWind());
+                        // se length for maior do que um (pelo menos um enter), pode mostrar frases simultaneamente na tela
+                    }
+                }
+            }
+            if(rain_message === true){
+                var analyze_text = message;
+                // console.log(analyze_text);
+                text = input_text.processText(analyze_text);
+                for(var a = 0; a < text.length; a++){
+                    if(text[a].length > 0){
+                        total_texts++;
+                        rain_text[total_texts-1] = new RainText();
+                        rain_text[total_texts-1].initializeText(text[a], environment.getGravity(), environment.getWind());
+                        // se length for maior do que um (pelo menos um enter), pode mostrar frases simultaneamente na tela
+                    }
+                }
+                rain_message=false;
+            }
+            if(rain_text[current_text] != undefined){
+                make_rain_text = true;
+                if(rain_text[current_text].endRainText() === true){
+                    // console.log('end rain');
+                    make_rain_text = false;
+                    current_text++;
+                    // console.log(rain_text);
+                }
+                // permitir dois ao mesmo tempo?
+            }
+
+            // Atualização de valores
+
+            environment.updateCurrentIntensity();
+            rain_context.clearRect(0, 0, rain_canvas.width, rain_canvas.height);
+            rain_context.textAlign="center";
+            rain_context.textBaseline = 'middle';
+            var current_intensity = environment.getCurrentIntensity();
+            var current_wind = environment.getWind();
+
+            // Desenho
+
+
+            // DROP WORD
+            // if(rain_text[current_text] != undefined){
+            // make_rain_text = true;
+            // if(rain_text[current_text].endRainText() === true){
+            //   // console.log('end rain');
+            //   make_rain_text = false;
+            //   current_text++;
+            //   console.log(rain_text);
+            // }
+
+            for(var z = 0; z < drop_word.length; z++){
+                if(drop_word[z][2] < drop_word[z][1]){
+                    drop_word[z][2]++;
+                }
+                else{
+                    drop_word[z][0].updateText();
+                    var in_text = drop_word[z][0].getText();
+                    var echo = drop_word[z][0].echoLine();
+                    for(var i = 0; i < in_text.length; i++){
+                        if(echo[i] != null){
+                            var offset_x = 0;
+                            var offset_y = in_text[i][3]/2+10;
+
+                            rain_context.beginPath();
+                            rain_context.moveTo(in_text[i][0]+offset_x,in_text[i][1]-offset_y);
+                            rain_context.lineTo(echo[i][0]+offset_x,echo[i][1]-offset_y);
+                            rain_context.strokeStyle="#7fa1d3";
+                            rain_context.stroke();
+                        }
+
+                        rain_context.fillStyle = "black";//"#7fa1d3";//
+                        rain_context.font = in_text[i][3]+"pt Source Sans Pro";
+                        rain_context.fillText(in_text[i][2], in_text[i][0], in_text[i][1]);
+                    }
+                }
+                if(drop_word[z][0].endRainText()){
+                    drop_word[z] = new Array(4);
+                    drop_word[z][0] = new DropWords();
+                    current_drop = Math.floor(Math.random() * (data.length - 1 + 1)) + 1;
+                    drop_word[z][0].initializeText(data[current_drop]['palavra'],environment.getGravity(),environment.getWind());
+                    drop_word[z][1] = Math.floor(Math.random() * (800 - 60 + 1)) + 60; // max_counter
+                    drop_word[z][2] = 0; // counter
+                    drop_word[z][3] = false;
+                    // console.log(data[current_drop]['palavra'] + " | " + drop_word[z][1]);
+                }
+            }
+
+
+
+            // --- GOTAS
+            for(var i = 0; i < environment.getCurrentIntensity(); i++){
+                drops[i].updateDrop(current_intensity,current_wind);
+
+                var offset_x = 0;
+                var offset_y = drops[i].getSize()/2;
+
+                var echo = drops[i].echoLine();
+                rain_context.beginPath();
+                rain_context.moveTo(drops[i].getX()+offset_x,drops[i].getY()-offset_y);
+                rain_context.lineTo(echo[0]+offset_x,echo[1]-offset_y);
+                rain_context.strokeStyle="#7fa1d3";
+                rain_context.stroke();
+
+                var temp_color = (200+(8*11))-(drops[i].getSize()*11); // VARIAÇÃO DE CINZAS
+                rain_context.fillStyle = "rgba("+temp_color+","+temp_color+","+temp_color+",1)"; // VARIAÇÃO DE CINZAS
+                // rain_context.fillStyle = "black"; // TUDO PRETO
+
+                rain_context.font = drops[i].getSize()+"px Source Sans Pro";
+                rain_context.fillText(drops[i].getChar(), drops[i].getX(), drops[i].getY());
+            }
+
+
+
+            // --- TEXTO
+            if(make_rain_text === true){
+                // console.log("running");
+
+                rain_text[current_text].updateText();
+                var in_text = rain_text[current_text].getText();
+                var echo = rain_text[current_text].echoLine();
+                for(var i = 0; i < in_text.length; i++){
+                    if(echo[i] != null){
+                        var offset_x = 0;
+                        var offset_y = in_text[i][3]/2+10;
+
+                        rain_context.beginPath();
+                        rain_context.moveTo(in_text[i][0]+offset_x,in_text[i][1]-offset_y);
+                        rain_context.lineTo(echo[i][0]+offset_x,echo[i][1]-offset_y);
+                        rain_context.strokeStyle="#7fa1d3";
+                        rain_context.stroke();
+                    }
+
+                    rain_context.fillStyle = "black";
+                    rain_context.font = "bold "+in_text[i][3]+"pt Source Sans Pro";
+                    rain_context.fillText(in_text[i][2], in_text[i][0], in_text[i][1]);
+                }
+            }
+
+        }
+
+        /* PAINEL DE CONTROLE */
+
+        gui.controlPanel();
+
+        var nft_button = document.createElement('div');
+        nft_button.id = 'buy';
+        nft_button.innerHTML = "BUY GOGOAME'S NFTS";
+
+        document.body.appendChild(nft_button);
+
+        nft_button.onmousedown = function(){
+            window.open('https://opensea.io/collection/gogoame','_blank');
+        }
+
+    } // end function mainCode
+
+</script>
+
+</body>
+</html>
